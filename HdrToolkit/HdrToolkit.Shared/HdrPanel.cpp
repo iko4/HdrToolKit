@@ -31,6 +31,7 @@
 #include <windows.ui.xaml.media.dxinterop.h>
 
 #include <iomanip>
+#include <algorithm>
 
 #include "ImageIO.h"
 
@@ -93,6 +94,8 @@ using namespace std;
 static int const NUM_PARTICES = 200;
 static const float GLARE_REVEAL_RAD = 0.015f; // Normalized distance for glare revelation
 
+std::size_t const HISTOGRAM_BUCKETS = 100;
+
 float Random(float min, float max)
 {
 	return (max - min) * rand() / static_cast<float>(RAND_MAX) + min;
@@ -110,7 +113,7 @@ std::wstring TimeToString(std::chrono::time_point<std::chrono::system_clock> tim
 	return stream.str();
 }
 
-void getNonZeroPixles(size_t width, size_t height, std::vector<int>& labelMap, std::vector<std::vector<D2D1_POINT_2F>>& ccPosList )
+void getNonZeroPixles(size_t width, size_t height, std::vector<int>& labelMap, std::vector<std::vector<D2D1_POINT_2F>>& ccPosList)
 {
 	float invH = 1.0f / float(height);
 	float invW = 1.0f / float(width);
@@ -138,7 +141,7 @@ void getNonZeroPixles(size_t width, size_t height, std::vector<int>& labelMap, s
 
 }
 
- void calcConnectedComps(size_t width, size_t height, const std::vector<float>& luminance, std::vector<int>& components, std::vector<std::vector<float>>& indvidualCC)
+void calcConnectedComps(size_t width, size_t height, const std::vector<float>& luminance, std::vector<int>& components, std::vector<std::vector<float>>& indvidualCC)
 {
 	// An image of visting information
 	std::vector<bool> visited(width * height, false);
@@ -178,7 +181,7 @@ void getNonZeroPixles(size_t width, size_t height, std::vector<int>& labelMap, s
 						{
 							visited[ptIdx] = true;
 							components[ptIdx] = compId; // write component Id
-							if (compId - 1>= indvidualCC.size()) // create new image for individual CC
+							if (compId - 1 >= indvidualCC.size()) // create new image for individual CC
 							{
 								vector<float> indCompImg(width * height, 0);
 								indvidualCC.push_back(indCompImg);
@@ -231,7 +234,7 @@ void getNonZeroPixles(size_t width, size_t height, std::vector<int>& labelMap, s
 
 							}
 							// bottom left
-							if (pt.y - 1 >= 0 && pt.x - 1>= 0)
+							if (pt.y - 1 >= 0 && pt.x - 1 >= 0)
 							{
 								XMINT2 bottomLeft = XMINT2(pt.x - 1, pt.y - 1);
 								nIdx = bottomLeft.y * width + bottomLeft.x;
@@ -567,7 +570,7 @@ IAsyncOperationWithProgress<bool, UpdateProgress>^ HdrPanel::Update(ParametersVi
 
 				auto device = m_d3dDevice.Get();
 				auto context = m_d3dContext.Get();
-				
+
 				// Local TMO -- Mantiuk06
 				progress.Status = "StatusTonemappingString";
 				auto stTMO = std::chrono::system_clock::now();
@@ -593,8 +596,8 @@ IAsyncOperationWithProgress<bool, UpdateProgress>^ HdrPanel::Update(ParametersVi
 				auto stGlare = std::chrono::system_clock::now();
 				Update_indvidualGlares(reporter, progress);
 				auto etGlare = std::chrono::system_clock::now();
-			//--------------------------------------------------
-			// original codes for glare overlay
+				//--------------------------------------------------
+				// original codes for glare overlay
 				progress.Status = "StatusGlaringString";
 				//auto stGlare = std::chrono::system_clock::now();
 				Update_Glare(reporter, progress, m_outputTexture.Get(), m_glareTexture.Get(), m_apertureTexture.Get(), m_glareOverlay.Get(), m_overlay.Get(), m_tonemappedImage.Get());
@@ -640,7 +643,7 @@ IAsyncOperationWithProgress<bool, UpdateProgress>^ HdrPanel::Update(ParametersVi
 					<< L"Local TMO took " << durationTMO.count() << L"ms; "
 					<< L"Global TMO took " << durationTMO2.count() << L"ms;"
 					<< L"Blob detction took " << durationBlob.count() << L"ms;"
-					<<L"Glare took "<<durationGlare.count()<<L"ms.";
+					<< L"Glare took " << durationGlare.count() << L"ms.";
 				Log(start, stream.str());
 			}
 			catch (...)
@@ -746,7 +749,7 @@ Windows::Foundation::IAsyncOperationWithProgress<bool, UpdateProgress>^ HdrToolk
 		}
 		else
 		{
-			
+
 
 			try
 			{
@@ -817,8 +820,8 @@ void HdrPanel::OnPointerInRange(Platform::Object ^ sender, Windows::UI::Xaml::In
 	UINT width = m_imageDetails.GetWidth();
 	UINT height = m_imageDetails.GetHeight();
 
-	float nptX = (ptrPt->Position.X + 0.5f)/ float(width);
-	float nptY = (ptrPt->Position.Y + 0.5f)/ float(height);
+	float nptX = (ptrPt->Position.X + 0.5f) / float(width);
+	float nptY = (ptrPt->Position.Y + 0.5f) / float(height);
 
 	wchar_t wcNormImgPt[512];
 	swprintf_s(wcNormImgPt, 512, L"\n nx=%f, ny=%f", nptX, nptY);
@@ -901,9 +904,9 @@ void HdrPanel::OnPointerInRange(Platform::Object ^ sender, Windows::UI::Xaml::In
 			GlareLensRender(m_glareLensPixRad, ptrPt->Position.X, ptrPt->Position.Y, m_tonemappedImage2.Get(), false);
 
 		}
-		else 
+		else
 		{
-		
+
 			// Otherwise, show only when revealGlares is true
 			if (revealGlares)
 			{
@@ -942,7 +945,7 @@ void HdrPanel::OnPointerInRange(Platform::Object ^ sender, Windows::UI::Xaml::In
 				}
 
 			}
-		
+
 		}
 
 
@@ -1000,14 +1003,14 @@ void HdrPanel::GlareLensRender(float radius, float centerX, float centerY, IRend
 	}
 	else
 	{
-		if(showBrightPixsOnly)
+		if (showBrightPixsOnly)
 			m_renderToolkit.CSCopy(context, m_accumTemp[src].Get(), m_overlay.Get());
 		else
 			m_renderToolkit.CSCopy(context, m_accumTemp[src].Get(), tonemappedImg->Get());
 	}
 
-	HRESULT hr = m_renderToolkit.GlareLensTexture(context, m_accumTemp[dst].Get(), 
-		/*m_overlay.Get()*/ m_accumTemp[src].Get(), (m_dispGlares)? m_outputTexture.Get() : m_colormapped.Get(), radius, centerX, centerY);
+	HRESULT hr = m_renderToolkit.GlareLensTexture(context, m_accumTemp[dst].Get(),
+		/*m_overlay.Get()*/ m_accumTemp[src].Get(), (m_dispGlares) ? m_outputTexture.Get() : m_colormapped.Get(), radius, centerX, centerY);
 
 
 	if (FAILED(hr))
@@ -1044,17 +1047,17 @@ void HdrPanel::ShowWithGlares(const std::vector<bool>& showGlareList)
 		{
 
 			m_renderToolkit.CSCombineLinear(context, m_accumTemp[dst].Get(),
-				m_accumTemp[src].Get(), 1.0f, 
+				m_accumTemp[src].Get(), 1.0f,
 				m_glareList[i].Get(), m_parameters.GetGlareIntensity());
 			swap(dst, src);
 			m_renderToolkit.CSClamp(context, m_accumTemp[dst].Get(), m_accumTemp[src].Get(), 0.0f, 1.0f);
 			swap(dst, src);
 
-	/*		
-			int cx = swprintf_s(fileName, 512, L"shownGlare%i.png", int(i));
-			String^ sFilename = ref new Platform::String(fileName);
+			/*
+					int cx = swprintf_s(fileName, 512, L"shownGlare%i.png", int(i));
+					String^ sFilename = ref new Platform::String(fileName);
 
-			saveTextureImage(device, context, m_accumTemp[src], sFilename);*/
+					saveTextureImage(device, context, m_accumTemp[src], sFilename);*/
 		}
 
 	}
@@ -1207,6 +1210,20 @@ void HdrPanel::Update_ImageDetails(progress_reporter<UpdateProgress>& reporter, 
 		progress.Loading = 7.0 / 8.0 * 100.0;
 		reporter.report(progress);
 
+		m_histogram.clear();
+		m_histogram.resize(HISTOGRAM_BUCKETS);
+		auto data = m_renderToolkit.CopyToVector(device, context, luminance.Get());
+		concurrency::parallel_for(std::size_t{ 0 }, data.size(), [&](std::size_t i)
+		{
+			auto value = data[i]; 
+			auto normalizedValue = (value - luminanceMin) / (luminanceMax - luminanceMin);
+			auto index = static_cast<std::size_t>(normalizedValue * HISTOGRAM_BUCKETS);
+			index = std::min(index, HISTOGRAM_BUCKETS - 1);
+
+			if (value != luminanceMin)
+				m_histogram[index]++;
+		});
+
 		float const delta = 1e-5f;
 		m_renderToolkit.CSAdd(context, intermediate.Get(), luminance.Get(), delta);
 		m_renderToolkit.CSLog(context, luminance.Get(), intermediate.Get());
@@ -1273,13 +1290,13 @@ void HdrPanel::Update_Glare(progress_reporter<UpdateProgress>& reporter, UpdateP
 
 	RenderTexture realTexture;
 	RenderTexture imagTexture;
-	
+
 	RenderTexture glareOverlayCopy;
 
 	// TODO: Enable wavelength changes later
 	if (!m_glareLoaded || changesGlare.Wavelengths)
 	{
-		Log( L"Creating glare filter!");
+		Log(L"Creating glare filter!");
 		//wchar_t wmsg[512];
 		//swprintf_s(wmsg, 512, L"Creating glare filter as m_glareLoaded = %b and waveLengthsChanged = %b", m_glareLoaded, changesGlare.Wavelengths);
 		//Log(wstring(wmsg));
@@ -1554,7 +1571,9 @@ void HdrPanel::Update_Glare(progress_reporter<UpdateProgress>& reporter, UpdateP
 		m_renderToolkit.CSShift(context, realTexture.Get(), realView.Get(), -static_cast<int>(glareSize / 2), -static_cast<int>(glareSize / 2));
 
 		// ALWAYS do gamma correction to glare overlay
-		m_renderToolkit.CSSubtract(context, glareOverlayCopy.Get(), realTexture.Get(), overlay);
+		/*m_renderToolkit.CSSubtract(context, glareOverlayCopy.Get(), realTexture.Get(), overlay);
+		m_renderToolkit.GammaCorrectTexture(context, glareOverlay, glareOverlayCopy.Get(), gamma, true);*/
+		m_renderToolkit.CSCopy(context, glareOverlayCopy.Get(), realTexture.Get());
 		m_renderToolkit.GammaCorrectTexture(context, glareOverlay, glareOverlayCopy.Get(), gamma, true);
 
 		//m_renderToolkit.CSSubtract(context, glareOverlay, realTexture.Get(), overlay);
@@ -1672,7 +1691,7 @@ void HdrPanel::Update_indvidualGlares(concurrency::progress_reporter<UpdateProgr
 			m_connectedCompsImages[i].clear();
 		m_connectedCompsImages.clear();
 		//		Flood-fill the blob overlay to get individual blobs*/
-	
+
 		// Set pixel to original value
 		auto pixels = reinterpret_cast<XMFLOAT4*>(orgValScratchImg.GetImages()->pixels);
 		// Get mask pixels
@@ -1710,8 +1729,8 @@ void HdrPanel::Update_indvidualGlares(concurrency::progress_reporter<UpdateProgr
 		GetConnectedComps(scratchImage, m_connectedCompsImages);
 	}
 	m_criticalSection.unlock();
-	
-	if ( m_parametersBlob.PeekChanges().HasChanged || m_parametersGlare.PeekChanges().Wavelengths)
+
+	if (m_parametersBlob.PeekChanges().HasChanged || m_parametersGlare.PeekChanges().Wavelengths)
 	{
 		// Create textures of individual connected components 
 		SourceRenderTexture texCC;
@@ -1729,7 +1748,7 @@ void HdrPanel::Update_indvidualGlares(concurrency::progress_reporter<UpdateProgr
 			else
 			{
 				m_glareLoaded = true;
-				auto changesGlare = m_parametersGlare.PeekChanges(); 
+				auto changesGlare = m_parametersGlare.PeekChanges();
 				changesGlare.Wavelengths = false;
 				Update_Glare(reporter, progress, m_accumTemp[texDst].Get(), m_glareTexture.Get(), m_apertureTexture.Get(), m_glareList[i].Get(), texCC.Get(), m_accumTemp[texSrc].Get());
 
@@ -1891,9 +1910,9 @@ void HdrPanel::Update_Blob(progress_reporter<UpdateProgress>& reporter, UpdatePr
 				Show(blobMask);
 				progress.FindingBlobs = (i + 1) * 100.0 / (numScales + 1);
 				reporter.report(progress);
-				}
 			}
 		}
+	}
 
 	if (changes.HasChanged || changesMantiuk.HasChanged)
 	{
@@ -1915,7 +1934,7 @@ void HdrPanel::Update_Blob(progress_reporter<UpdateProgress>& reporter, UpdatePr
 
 	progress.FindingBlobs = 100.0;
 	reporter.report(progress);
-	}
+}
 
 void HdrPanel::Update_Reinhard02(progress_reporter<UpdateProgress>& reporter, UpdateProgress& progress, IRenderTexture* target, IRenderTexture* source)
 {
@@ -3036,7 +3055,7 @@ void HdrPanel::CreateTextures(UINT width, UINT height)
 	);
 
 	// Accumulate multiple glare
-	for(int i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 		ThrowIfFailed(
 			m_accumTemp[i].Create(
 				device,
@@ -3168,7 +3187,7 @@ void HdrToolkit::HdrPanel::GetConnectedComps(ScratchImage & src, std::vector<std
 		//vector<size_t> assignments;
 		//Kmeans::DataFrame means = Kmeans::k_means(data, MAX_GLARES, 300, assignments);
 
-		
+
 		vector<vector<D2D1_POINT_2F>> ccClusterList(MAX_GLARES);
 		size_t ccStartId = 0;
 		for (size_t i = 0; i < m_brightPixCCList.size(); i++)
@@ -3264,7 +3283,7 @@ void HdrPanel::Show(IRenderTexture* texture)
 
 void HdrToolkit::HdrPanel::AnimateGlaresHighlight()
 {
-//	throw gcnew System::NotImplementedException();
+	//	throw gcnew System::NotImplementedException();
 
 	auto device = m_d3dDevice.Get();
 	auto context = m_d3dContext.Get();
@@ -3276,7 +3295,7 @@ void HdrToolkit::HdrPanel::AnimateGlaresHighlight()
 	int dst = 1;
 	int src = 0;
 	m_renderToolkit.CSCopy(context, m_accumTemp[src].Get(), m_colormapped.Get());
-	
+
 	for (size_t i = 0; i < m_glareList.size(); i++)
 	{
 		m_renderToolkit.CSCombineLinear(context, m_accumTemp[dst].Get(), m_accumTemp[src].Get(), 1.0f, m_glareList[i].Get(), m_parameters.GetGlareIntensity());
@@ -3323,7 +3342,7 @@ void HdrToolkit::HdrPanel::AnimateGlaresHighlight()
 
 		// Copy to dst
 		//m_renderToolkit.CSCopy(context, m_accumTemp[dst].Get(), m_temp.Get());
-		
+
 		wait(400);// wait for a while before highlighting the next glare
 		Show(m_accumTemp[dst].Get());
 		swap(dst, src);
@@ -3384,12 +3403,12 @@ void HdrToolkit::HdrPanel::AnimateGlaresFlicker()
 	float maxIntensity = 0.10f;
 	//for (int numFlickers = 0; numFlickers < 20; numFlickers++)
 	int numFlickers = 0;
-	for(;;)
+	for (;;)
 	{
-		
+
 		for (int i = 0; i < numStepPerFlick; i++)
 		{
-			float a = (numFlickers % 2 == 0)? 
+			float a = (numFlickers % 2 == 0) ?
 				minIntensity + (maxIntensity - minIntensity) * float(i) * invStepPerFlick : // Lighten up
 				maxIntensity - (maxIntensity - minIntensity) * float(i) * invStepPerFlick; // darken
 			m_renderToolkit.CSCombineLinear(context, m_temp.Get(), m_accumTemp[src].Get(), 1.0f, m_glareOverlay.Get(), a); // Flickering
@@ -3398,10 +3417,54 @@ void HdrToolkit::HdrPanel::AnimateGlaresFlicker()
 
 
 		}
-		numFlickers = (numFlickers + 1) % 2;		
+		numFlickers = (numFlickers + 1) % 2;
 		if (!m_playAnim)
 			break;
 	}
 
 	Show(m_outputTexture.Get());
+}
+
+Windows::Foundation::IAsyncOperation<Windows::UI::Xaml::Media::Imaging::BitmapImage^>^ HdrToolkit::HdrPanel::ComputeHistogram()
+{
+	using namespace Windows::UI::Xaml::Media::Imaging;
+	using namespace Windows::Graphics::Imaging;
+	using namespace Windows::Storage::Streams;
+
+	if (m_histogram.empty())
+		return nullptr;
+
+	std::size_t const width = m_histogram.size();
+	std::size_t const height = *std::max_element(m_histogram.begin(), m_histogram.end()) + 1;
+
+	std::vector<unsigned char> data(width * height * 4, std::numeric_limits<unsigned char>::max() / 8);
+	concurrency::parallel_for(std::size_t{ 0 }, width, [&](std::size_t x) 
+	{
+		for (std::size_t y = 0; y < m_histogram[x]; y++)
+		{
+			for (int c = 0; c < 4; c++)
+			{
+				data[(height - y - 1) * width * 4 + x * 4 + c] = std::numeric_limits<unsigned char>::max() / 2;
+			}
+		}
+	});
+	
+	auto d = ref new Platform::Array<unsigned char>(data.data(), data.size());
+
+	return create_async([=]()
+	{
+		auto bitmapImage = ref new BitmapImage();
+		auto stream = ref new InMemoryRandomAccessStream();
+		return create_task(BitmapEncoder::CreateAsync(BitmapEncoder::BmpEncoderId, stream)).then([=](BitmapEncoder^ encoder)
+		{
+			encoder->SetPixelData(BitmapPixelFormat::Bgra8, BitmapAlphaMode::Ignore, width, height, 96, 96, d);
+			return encoder->FlushAsync();
+		}).then([=]()
+		{
+			return bitmapImage->SetSourceAsync(stream);
+		}).then([=]()
+		{
+			return bitmapImage;
+		});
+	});
 }

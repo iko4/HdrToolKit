@@ -39,6 +39,8 @@
 
 #include "fft.h"
 
+#include <atomic>
+
 #define MAX_LEVELS 16
 #define MAX_GLARES 8
 namespace HdrToolkit
@@ -82,6 +84,7 @@ namespace HdrToolkit
 		ImageDetailsView^ GetImageDetails();
 		Platform::String^ GetLog();
 
+		Windows::Foundation::IAsyncOperation<Windows::UI::Xaml::Media::Imaging::BitmapImage^>^ ComputeHistogram();
 
 	private protected:
 
@@ -197,6 +200,8 @@ namespace HdrToolkit
 		bool                                               m_playAnim; // whether to play animation
 
 		bool                                               m_dispGlares; // display with glare? 
+
+		std::vector<std::atomic_long> m_histogram;
 	private:
 		~HdrPanel();
 

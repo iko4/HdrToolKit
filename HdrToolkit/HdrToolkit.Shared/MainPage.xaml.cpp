@@ -29,6 +29,8 @@ using namespace concurrency;
 
 // Die Elementvorlage "Leere Seite" ist unter http://go.microsoft.com/fwlink/?LinkId=234238 dokumentiert.
 
+std::size_t const HISTOGRAM_POINT_COUNT = 100;
+
 MainPage::MainPage()
 {
 	InitializeComponent();
@@ -196,6 +198,12 @@ void MainPage::SetDefaults()
 	InvertColormap->IsOn = false;
 
 	LensRadius->Value = 25;
+
+	HistogramCurce->Points->Clear();
+	for (int i = 0; i < HISTOGRAM_POINT_COUNT; i++)
+	{
+		HistogramCurce->Points->Append({ static_cast<float>(i * HistogramPLot->Width / (HISTOGRAM_POINT_COUNT - 1)), static_cast<float>(HistogramPLot->Height - i * HistogramPLot->Height / (HISTOGRAM_POINT_COUNT - 1)) });
+	}
 }
 
 void MainPage::PickOpen_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
@@ -206,7 +214,20 @@ void MainPage::PickOpen_Click(Platform::Object^ sender, Windows::UI::Xaml::Route
 	{
 		if (loadingSucceded)
 		{
-			Update(true);
+			Update(true).then([this]()
+			{
+				return create_task(MainPanel->ComputeHistogram()).then([this](Windows::UI::Xaml::Media::Imaging::BitmapImage^ image)
+				{
+					auto background = ref new ImageBrush();
+					background->ImageSource = image;
+					background->AlignmentX = AlignmentX::Left;
+					background->AlignmentY = AlignmentY::Top;
+					background->Stretch = Stretch::Fill;
+					// HistogramImage->Source = image;
+					HistogramPLot->Background = background;
+				});
+			});
+
 		}
 		else
 		{
@@ -405,25 +426,25 @@ void HdrToolkit::MainPage::PlayAnimationFlicker_Click(Platform::Object ^ sender,
 		parameters->Blob = blob;
 		parameters->Mantiuk06 = mantiuk06;
 		parameters->Reinhard02 = reinhard02;
-		 // Flicker mode
+		// Flicker mode
 		auto operation = MainPanel->PlayAnimationFL(parameters);
-	/*	operation->Progress = ref new AsyncOperationProgressHandler<bool, UpdateProgress>([this](IAsyncOperationWithProgress<bool, UpdateProgress>^ action, UpdateProgress progress)
-		{
-			m_dispatcher->RunAsync(CoreDispatcherPriority::Normal, ref new DispatchedHandler([this, progress]()
+		/*	operation->Progress = ref new AsyncOperationProgressHandler<bool, UpdateProgress>([this](IAsyncOperationWithProgress<bool, UpdateProgress>^ action, UpdateProgress progress)
 			{
-				std::vector<double> progresses = { progress.Loading, progress.Tonemapping, progress.FindingBlobs, progress.Glaring, progress.Displaying };
+				m_dispatcher->RunAsync(CoreDispatcherPriority::Normal, ref new DispatchedHandler([this, progress]()
+				{
+					std::vector<double> progresses = { progress.Loading, progress.Tonemapping, progress.FindingBlobs, progress.Glaring, progress.Displaying };
 
-				Progress->Value = std::accumulate(progresses.begin(), progresses.end(), 0.0) / progresses.size();
+					Progress->Value = std::accumulate(progresses.begin(), progresses.end(), 0.0) / progresses.size();
 
-				Progress_Status->Text = m_loader->GetString("StatusString") + ": " + m_loader->GetString(progress.Status);
+					Progress_Status->Text = m_loader->GetString("StatusString") + ": " + m_loader->GetString(progress.Status);
 
-				Progress_Loading->Value = progress.Loading;
-				Progress_Tonemapping->Value = progress.Tonemapping;
-				Progress_FindingBlobs->Value = progress.FindingBlobs;
-				Progress_Glaring->Value = progress.Glaring;
-				Progress_Displaying->Value = progress.Displaying;
-			}));
-		});*/
+					Progress_Loading->Value = progress.Loading;
+					Progress_Tonemapping->Value = progress.Tonemapping;
+					Progress_FindingBlobs->Value = progress.FindingBlobs;
+					Progress_Glaring->Value = progress.Glaring;
+					Progress_Displaying->Value = progress.Displaying;
+				}));
+			});*/
 
 		create_task(operation).then([this](bool renderSucceded)
 		{
@@ -542,7 +563,7 @@ void HdrToolkit::MainPage::PlayFlickerToggle_Toggled(Platform::Object ^ sender, 
 void MainPage::CreateInfoPop(Windows::UI::Input::PointerPoint^ ptrPt)
 {
 
-	
+
 	TextBlock^ pointerDetails = ref new TextBlock();
 	pointerDetails->Name = ptrPt->PointerId.ToString();
 	pointerDetails->Foreground = ref new SolidColorBrush(Windows::UI::Colors::White);
@@ -578,7 +599,7 @@ void MainPage::CreateInfoPop(Windows::UI::Input::PointerPoint^ ptrPt)
 		ImageDetailsView^ imgInfo = MainPanel->GetImageDetails();
 		if (imgInfo)
 		{
-			float imageW = float(imgInfo->Width) ;
+			float imageW = float(imgInfo->Width);
 			float imageH = float(imgInfo->Height);
 
 			Point normImgPt;
@@ -610,7 +631,7 @@ void MainPage::MainPanel_PointerMoved(Platform::Object ^ sender, Windows::UI::Xa
 
 	if (MainPanel)
 	{
-		
+
 		ImageDetailsView^ imgInfo = MainPanel->GetImageDetails();
 		if (imgInfo)
 		{
@@ -667,7 +688,7 @@ void HdrToolkit::MainPage::MainPanel_PointerPressed(Platform::Object ^ sender, W
 			float imageW = float(imgInfo->Width);
 			float imageH = float(imgInfo->Height);
 
-			
+
 			nImgX = ptrPt->Position.X / imageW;
 			nImgY = ptrPt->Position.Y / imageH;
 
@@ -676,7 +697,7 @@ void HdrToolkit::MainPage::MainPanel_PointerPressed(Platform::Object ^ sender, W
 
 	if (MainPanel)
 	{
-		if(nImgX >= 0.0f && nImgX < 1.0f && nImgY >= 0.0f && nImgY < 1.0f)
+		if (nImgX >= 0.0f && nImgX < 1.0f && nImgY >= 0.0f && nImgY < 1.0f)
 			MainPanel->OnPointerInRange(sender, e);
 	}
 }
@@ -711,7 +732,7 @@ void MainPage::Button_Toggled(Platform::Object^ sender, Windows::UI::Xaml::Route
 	Update();
 }
 
-void MainPage::Update(bool forceUpdate)
+task<void> MainPage::Update(bool forceUpdate)
 {
 	if (MainPanel && (forceUpdate || !DisableUpdate->IsChecked->Value))
 	{
@@ -768,7 +789,7 @@ void MainPage::Update(bool forceUpdate)
 			}));
 		});
 
-		create_task(operation).then([this](bool renderSucceded)
+		return create_task(operation).then([this](bool renderSucceded)
 		{
 			if (renderSucceded)
 			{
@@ -791,6 +812,8 @@ void MainPage::Update(bool forceUpdate)
 			UpdateButton->IsEnabled = DisableUpdate->IsChecked->Value;
 		});
 	}
+
+	return task<void>();
 }
 
 void MainPage::EnableAllControls(bool enable)
@@ -849,4 +872,41 @@ void MainPage::Update_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedE
 void MainPage::ShowLog_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e)
 {
 	ShowLog->DataContext = MainPanel->GetLog();
+}
+
+void HdrToolkit::MainPage::HistogramPLot_PointerMoved(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e)
+{
+	if (!e->Pointer->IsInContact)
+		return;
+
+	auto point = e->GetCurrentPoint(HistogramPLot)->Position;
+
+	auto x = point.X / HistogramPLot->Width;
+
+	auto pointIndex = static_cast<unsigned int>(x * (HISTOGRAM_POINT_COUNT - 1) + 0.5);
+
+	auto oldPoint = HistogramCurce->Points->GetAt(pointIndex);
+
+	auto newY = std::max(0.0f, std::min(point.Y, static_cast<float>(HistogramPLot->Height)));
+
+	HistogramCurce->Points->SetAt(pointIndex, { oldPoint.X, newY });
+}
+
+std::vector<std::pair<double, double>> HdrToolkit::MainPage::GetControlPoints()
+{
+	std::vector<std::pair<double, double>> controlPoints(HISTOGRAM_POINT_COUNT);
+
+	auto points = HistogramCurce->Points;
+
+	for (int i = 0; i < controlPoints.size(); i++)
+	{
+		auto point = points->GetAt(i);
+		controlPoints[i] =
+		{
+			point.X / HistogramPLot->Width,
+			1.0 - point.Y / HistogramPLot->Height
+		};
+	}
+
+	return controlPoints;
 }

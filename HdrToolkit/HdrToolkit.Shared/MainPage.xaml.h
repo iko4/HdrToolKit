@@ -60,14 +60,17 @@ namespace HdrToolkit
 
 		void Button_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 
-		void Update(bool forceUpdate = false);
+		concurrency::task<void> Update(bool forceUpdate = false);
 		void EnableAllControls(bool enable);
 		// Zhoul's controls
 		void EnableNewControls(bool enable);
+
+		std::vector<std::pair<double, double>> GetControlPoints();
 		
 		void DisableUpdate_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void Update_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void ShowLog_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void InvertColormapButton_Toggled(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs ^ e);
+		void HistogramPLot_PointerMoved(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
 	};
 }

@@ -138,6 +138,13 @@
                     <Button x:Name="PlayAnim"  IsEnabled="False" Click ="PlayAnimation_Click" HorizontalAlignment="Left"></Button>
                     <Button x:Name="PlayAnimFlicker"  IsEnabled="False" Click ="PlayAnimationFlicker_Click" HorizontalAlignment="Right">Play Flicker Animation</Button>
                 </Grid>
+
+                <Canvas x:Name="HistogramPLot" Width="300" Height="300" Background="Gray" PointerMoved="HistogramPLot_PointerMoved">
+                    <Polyline Stroke="Black" StrokeThickness="1" Points="0,300 300,0"/>
+                    <Polyline x:Name="HistogramCurce" Stroke="White" StrokeThickness="4"/>
+                </Canvas>
+
+                <Grid Height="200"/>
             </StackPanel>
         </ScrollViewer>
 
